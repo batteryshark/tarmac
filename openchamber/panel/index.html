@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarmac</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--oc-bg); color: var(--oc-fg); font: 13px/1.45 var(--oc-font, system-ui); }
+main { padding: 14px 14px 24px; display: grid; gap: 12px; }
+header { display: flex; justify-content: flex-end; }
+.dim { color: var(--oc-muted); font-size: 12px; }
+#notice:empty, #loading:empty { display: none; }
+#sources { display: grid; gap: 10px; }
+.source { border: 1px solid var(--oc-border); border-radius: var(--oc-radius, 8px); padding: 10px 12px; display: grid; gap: 6px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.name { font-weight: 600; overflow-wrap: anywhere; }
+.balance { font-size: 18px; font-variant-numeric: tabular-nums; }
+.win { display: grid; gap: 3px; }
+.row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.row .value { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--oc-muted); }
+.row .value strong { color: var(--oc-fg); font-weight: 500; }
+/* The row above the bar already reads out the percentage. */
+.win .oc-sdk-progress-label { display: none; }
+.unknown-bar { height: 6px; border-radius: 3px; background: repeating-linear-gradient(45deg, var(--oc-border), var(--oc-border) 4px, transparent 4px, transparent 8px); }
+.reason { color: var(--oc-error-text); font-size: 12px; }
+.held { color: var(--oc-warning-text); font-size: 12px; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<main>
+  <header><span class="dim" id="stamp"></span></header>
+  <div id="notice"></div>
+  <div id="loading"></div>
+  <div id="sources"></div>
+</main>
+<script src="main.js"></script>
+</body>
+</html>

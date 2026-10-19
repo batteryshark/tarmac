@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tarmac</title>
+<style>
+:root {
+  --bg: #101418; --card: #1a2027; --line: #2a323c; --text: #d8dee6;
+  --dim: #8a95a3; --ok: #4cc38a; --warn: #e5b567; --bad: #e5734c;
+  --accent: #5aa9e6;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 ui-monospace, "SF Mono", Menlo, monospace; }
+header { display: flex; align-items: baseline; gap: 12px;
+  padding: 14px 20px; border-bottom: 1px solid var(--line); }
+header h1 { font-size: 16px; margin: 0; letter-spacing: 2px; }
+header .dim { color: var(--dim); font-size: 12px; }
+main { padding: 20px; display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+.card { background: var(--card); border: 1px solid var(--line);
+  border-radius: 8px; padding: 14px 16px; }
+.card.disabled { opacity: .45; }
+.top { display: flex; justify-content: space-between; align-items: baseline; }
+.top .name { font-weight: 600; }
+.pill { font-size: 11px; padding: 1px 8px; border-radius: 9px;
+  border: 1px solid var(--line); color: var(--dim); }
+.pill.current { color: var(--ok); border-color: var(--ok); }
+.pill.stale { color: var(--warn); border-color: var(--warn); }
+.pill.login { color: var(--bad); border-color: var(--bad); }
+.meta { color: var(--dim); font-size: 12px; margin: 2px 0 10px; }
+.win { margin: 8px 0; }
+.win .row { display: flex; justify-content: space-between; font-size: 12px; }
+.bar { height: 6px; background: var(--line); border-radius: 3px;
+  margin-top: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--ok); }
+.bar i.warn { background: var(--warn); } .bar i.bad { background: var(--bad); }
+.bar.unknown { background: repeating-linear-gradient(45deg, var(--line),
+  var(--line) 4px, var(--card) 4px, var(--card) 8px); }
+.balance { font-size: 22px; margin: 6px 0; }
+.reason { color: var(--bad); font-size: 12px; margin-top: 6px; }
+.note { color: var(--dim); font-size: 12px; margin-top: 6px; }
+.actions { margin-top: 10px; display: flex; gap: 8px; }
+button { background: none; border: 1px solid var(--line); color: var(--dim);
+  border-radius: 5px; padding: 3px 10px; font: inherit; font-size: 12px;
+  cursor: pointer; }
+button:hover { color: var(--text); border-color: var(--dim); }
+#empty { color: var(--dim); padding: 40px; text-align: center;
+  grid-column: 1/-1; }
+#addwrap { padding: 0 20px 30px; }
+details summary { color: var(--dim); cursor: pointer; font-size: 12px; }
+form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+input, select { background: var(--bg); border: 1px solid var(--line);
+  color: var(--text); border-radius: 5px; padding: 4px 8px; font: inherit;
+  font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TARMAC</h1>
+  <span class="dim" id="stamp"></span>
+  <span class="dim" id="err" style="color:var(--bad)"></span>
+</header>
+<main id="cards"><div id="empty">loading…</div></main>
+<div id="addwrap">
+<details>
+  <summary>add source</summary>
+  <form id="add">
+    <input name="provider" placeholder="provider" required>
+    <select name="adapter" id="adapters"></select>
+    <input name="account" placeholder="account (optional)">
+    <input name="config" placeholder='config JSON (optional)' size="28">
+    <input name="token" id="token" placeholder="bearer token" size="28">
+    <button>create</button>
+  </form>
+</details>
+</div>
+<script>
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = t => String(t ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function untilText(iso) {
+  if (!iso) return "";
+  const left = (new Date(iso) - Date.now()) / 1000;
+  if (left <= 0) return "now";
+  const m = Math.floor(left / 60), d = Math.floor(m / 1440),
+    h = Math.floor((m % 1440) / 60), mm = m % 60;
+  return "in " + (d ? d + "d " : "") + (d || h ? h + "h " : "") + mm + "m";
+}
+
+function windowHtml(w) {
+  if (w.unit && w.unit !== "percent") {  // money: a number, never a bar
+    const v = w.remaining_percent;
+    const right = v == null ? esc(w.stale_reason || "unknown")
+      : v.toFixed(2) + " " + esc(w.unit) + (w.resets_at ? " · resets " + untilText(w.resets_at) : "");
+    return `<div class="win"><div class="row">
+      <span>${esc(w.label)}</span><span>${right}</span></div></div>`;
+  }
+  const pct = w.remaining_percent;
+  const cls = pct == null ? "" : pct < 10 ? "bad" : pct < 30 ? "warn" : "";
+  const right = pct == null
+    ? esc(w.stale_reason || "unknown")
+    : pct.toFixed(0) + "%" + (w.resets_at ? " · resets " + untilText(w.resets_at) : "");
+  return `<div class="win"><div class="row">
+    <span>${esc(w.label)}</span><span>${right}</span></div>
+    ${pct == null ? '<div class="bar unknown"></div>'
+      : `<div class="bar"><i class="${cls}" style="width:${pct}%"></i></div>`}
+    </div>`;
+}
+
+function card(s) {
+  const latest = s.latest || {};
+  const pillCls = s.needs_login ? "login" : s.status;
+  const pillText = s.needs_login ? "needs login" : s.status;
+  let body = "";
+  if (s.kind === "api" && latest.remaining != null) {
+    body += `<div class="balance">${latest.remaining.toFixed(2)}
+      <span class="dim">${esc(latest.unit || "")}</span></div>`;
+  }
+  body += (latest.windows || []).map(windowHtml).join("");
+  const bits = [];
+  if (s.burn_rate != null) bits.push(`burn ${s.burn_rate.toFixed(2)}%/h`);
+  if (latest.credits && latest.credits.text) bits.push(esc(latest.credits.text));
+  if (latest.observed_at)
+    bits.push("read " + new Date(latest.observed_at).toLocaleString());
+  return `<div class="card ${s.enabled ? "" : "disabled"}" data-slug="${esc(s.slug)}">
+    <div class="top"><span class="name">${esc(s.name)}</span>
+      <span class="pill ${pillCls}">${esc(pillText)}</span></div>
+    <div class="meta">${esc(s.provider)}${s.account ? " · " + esc(s.account) : ""}
+      · ${esc(s.adapter)}</div>
+    ${body}
+    ${latest.reason ? `<div class="reason">${esc(latest.reason)}</div>` : ""}
+    ${bits.length ? `<div class="note">${bits.join(" · ")}</div>` : ""}
+    <div class="actions"><button data-act="refresh">refresh</button>
+      ${["claude", "codex"].includes(s.adapter)
+        ? '<button data-act="login">login</button>' : ""}</div>
+  </div>`;
+}
+
+async function load() {
+  if (document.hidden) return;  // a background tab is not a reader
+  try {
+    const data = await (await fetch("/api/v1/status")).json();
+    $("#err").textContent = "";
+    $("#stamp").textContent = "as of " + new Date(data.generated_at).toLocaleTimeString();
+    const cards = data.sources.map(card).join("");
+    $("#cards").innerHTML = cards ||
+      '<div id="empty">no sources — add one below or `tarmac sources add`</div>';
+    const auth = data.claude_auth;
+    if (auth && auth.logged_in === false)
+      $("#err").textContent = "claude is not logged in — run `claude /login`";
+  } catch (e) {
+    $("#err").textContent = "service unreachable";
+  }
+}
+
+document.addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]");
+  if (!b) return;
+  const slug = b.closest(".card").dataset.slug;
+  if (b.dataset.act === "refresh") {
+    b.textContent = "polling…"; b.disabled = true;
+    await fetch(`/api/v1/sources/${encodeURIComponent(slug)}/refresh?wait=40`,
+      {method: "POST"}).catch(() => {});
+    await load();
+  } else if (b.dataset.act === "login") {
+    b.disabled = true;
+    const resp = await fetch(
+      `/api/v1/sources/${encodeURIComponent(slug)}/login`,
+      {method: "POST"}).catch(() => null);
+    $("#err").textContent = resp && resp.ok
+      ? "sign-in opened in Terminal — refresh the source when done"
+      : "could not open the sign-in";
+    b.disabled = false;
+  }
+});
+
+async function loadAdapters() {
+  try {
+    const meta = await (await fetch("/api/v1/meta")).json();
+    $("#adapters").innerHTML = Object.keys(meta.adapters).sort()
+      .map(a => `<option>${esc(a)}</option>`).join("");
+  } catch (e) {}
+}
+
+try { $("#token").value = localStorage.getItem("tarmac_token") || ""; }
+catch (e) {}
+
+$("#add").addEventListener("submit", async e => {
+  e.preventDefault();
+  const f = e.target;
+  let config = {};
+  if (f.config.value.trim()) {
+    try { config = JSON.parse(f.config.value); }
+    catch (err) { $("#err").textContent = "config is not valid JSON"; return; }
+  }
+  try { localStorage.setItem("tarmac_token", f.token.value); } catch (err) {}
+  const resp = await fetch("/api/v1/sources", {
+    method: "POST",
+    headers: {"Content-Type": "application/json",
+              "Authorization": "Bearer " + f.token.value},
+    body: JSON.stringify({name: f.provider.value, provider: f.provider.value,
+                          adapter: f.adapter.value, account: f.account.value,
+                          config}),
+  });
+  if (!resp.ok) {
+    const detail = await resp.json().catch(() => ({}));
+    $("#err").textContent = detail.error || ("create failed: " + resp.status);
+    return;
+  }
+  f.reset();
+  await load();
+});
+
+loadAdapters();
+load();
+setInterval(load, 45000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) load();
+});
+</script>
+</body>
+</html>

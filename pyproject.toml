@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tarmac"
+version = "0.1.0"
+description = "Local LLM provider runway service: usage, burn rate, resets, balances."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+tarmac = "tarmac.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tarmac"]
+
+[dependency-groups]
+dev = ["pytest"]
