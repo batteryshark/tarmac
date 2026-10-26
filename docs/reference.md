@@ -56,7 +56,7 @@ Enabled sources normally poll every 300 seconds, with up to four adapters runnin
 
 Compare each applicable window's identity, unit, age and reset precision. Unknown or expired readings don't establish available capacity. Burn rate describes adjacent observations and doesn't predict a future task's cost. Some CLI reads are throttled and reuse measurements; provider output and undocumented endpoints can change.
 
-Tarmac supplies observations to other tools; it doesn't dispatch workers, buy credits, redeem resets or select paid fallback automatically. It is separate from Runway's worker dispatch decisions and runs independently of OpenChamber.
+Tarmac supplies observations to other tools; it doesn't dispatch workers, buy credits, redeem resets or select paid fallback automatically. It runs independently of the harness consuming those observations.
 
 ## Credentials and local access
 
