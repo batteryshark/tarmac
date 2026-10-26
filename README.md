@@ -14,9 +14,11 @@ OpenChamber panel showing usage windows and banked Codex reset credits.
 
 ## Run from source
 
-The core needs Python 3.11+ with SQLite support. It has no third-party Python runtime dependencies. From this checkout:
+The core needs Python 3.11+ with SQLite support. It has no third-party Python runtime dependencies.
 
 ```sh
+git clone https://github.com/batteryshark/tarmac.git
+cd tarmac
 python3 -m tarmac serve
 ```
 
